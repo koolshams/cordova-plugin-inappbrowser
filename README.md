@@ -16,6 +16,8 @@
 #         specific language governing permissions and limitations
 #         under the License.
 -->
+Added support for sharing url via default share intend in IOS
+
 
 # cordova-plugin-inappbrowser
 
