@@ -41,10 +41,15 @@
 
 @implementation CDVInAppBrowser
 
-- (void)pluginInitialize
+- (CDVInAppBrowser*)initWithWebView:(UIWebView*)theWebView
 {
-    _previousStatusBarStyle = -1;
-    _callbackIdPattern = nil;
+    self = [super initWithWebView:theWebView];
+    if (self != nil) {
+        _previousStatusBarStyle = -1;
+        _callbackIdPattern = nil;
+    }
+
+    return self;
 }
 
 - (void)onReset
@@ -82,11 +87,7 @@
     self.callbackId = command.callbackId;
 
     if (url != nil) {
-#ifdef __CORDOVA_4_0_0
-        NSURL* baseUrl = [self.webViewEngine URL];
-#else
         NSURL* baseUrl = [self.webView.request URL];
-#endif
         NSURL* absoluteUrl = [[NSURL URLWithString:url relativeToURL:baseUrl] absoluteURL];
 
         if ([self isSystemUrl:absoluteUrl]) {
@@ -148,6 +149,7 @@
 
     [self.inAppBrowserViewController showLocationBar:browserOptions.location];
     [self.inAppBrowserViewController showToolBar:browserOptions.toolbar :browserOptions.toolbarposition];
+    self.inAppBrowserViewController.shareUrl=[url absoluteString];
     if (browserOptions.closebuttoncaption != nil) {
         [self.inAppBrowserViewController setCloseButtonTitle:browserOptions.closebuttoncaption];
     }
@@ -230,11 +232,7 @@
 {
     if ([self.commandDelegate URLIsWhitelisted:url]) {
         NSURLRequest* request = [NSURLRequest requestWithURL:url];
-#ifdef __CORDOVA_4_0_0
-        [self.webViewEngine loadRequest:request];
-#else
         [self.webView loadRequest:request];
-#endif
     } else { // this assumes the InAppBrowser can be excepted from the white-list
         [self openInInAppBrowser:url withOptions:options];
     }
@@ -465,12 +463,7 @@
         _userAgent = userAgent;
         _prevUserAgent = prevUserAgent;
         _browserOptions = browserOptions;
-#ifdef __CORDOVA_4_0_0
-        _webViewDelegate = [[CDVUIWebViewDelegate alloc] initWithDelegate:self];
-#else
         _webViewDelegate = [[CDVWebViewDelegate alloc] initWithDelegate:self];
-#endif
-        
         [self createViews];
     }
 
@@ -518,6 +511,8 @@
     [self.spinner stopAnimating];
 
     self.closeButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(close)];
+    self.shareButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(share)];
+    
     self.closeButton.enabled = YES;
 
     UIBarButtonItem* flexibleSpaceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
@@ -540,6 +535,7 @@
     self.toolbar.multipleTouchEnabled = NO;
     self.toolbar.opaque = NO;
     self.toolbar.userInteractionEnabled = YES;
+    self.toolbar.barTintColor = [UIColor whiteColor];
 
     CGFloat labelInset = 5.0;
     float locationBarY = toolbarIsAtBottom ? self.view.bounds.size.height - FOOTER_HEIGHT : self.view.bounds.size.height - LOCATIONBAR_HEIGHT;
@@ -583,7 +579,7 @@
     self.backButton.enabled = YES;
     self.backButton.imageInsets = UIEdgeInsetsZero;
 
-    [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton]];
+    [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton, flexibleSpaceButton, self.shareButton]];
 
     self.view.backgroundColor = [UIColor grayColor];
     [self.view addSubview:self.toolbar];
@@ -756,6 +752,16 @@
             [[self parentViewController] dismissViewControllerAnimated:YES completion:nil];
         }
     });
+}
+
+- (void)share
+{
+    NSMutableArray *sharingItems = [NSMutableArray new];
+    NSString *message=[[NSString alloc]initWithFormat:@"%@ \n\n Shared from Lifestyle24 app at www.ls24.us/app", self.shareUrl];
+    [sharingItems addObject:message];
+    UIActivityViewController *activityController = [[UIActivityViewController alloc] initWithActivityItems:sharingItems applicationActivities:nil];
+    [activityController setValue:@"Shared from Lifestyle24" forKey:@"subject"];
+    [self presentViewController:activityController animated:YES completion:nil];
 }
 
 - (void)navigateTo:(NSURL*)url
@@ -975,20 +981,6 @@
 
 @implementation CDVInAppBrowserNavigationController : UINavigationController
 
-- (void) viewDidLoad {
-
-    CGRect frame = [UIApplication sharedApplication].statusBarFrame;
-
-    // simplified from: http://stackoverflow.com/a/25669695/219684
-
-    UIToolbar* bgToolbar = [[UIToolbar alloc] initWithFrame:frame];
-    bgToolbar.barStyle = UIBarStyleDefault;
-    [self.view addSubview:bgToolbar];
-
-    [super viewDidLoad];
-}
-
-
 #pragma mark CDVScreenOrientationDelegate
 
 - (BOOL)shouldAutorotate
@@ -1019,4 +1011,3 @@
 
 
 @end
-
